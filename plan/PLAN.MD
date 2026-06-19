@@ -6,13 +6,13 @@
 
 ## 📌 Table of Contents
 
-1. [Product Vision & Problem Statement](#1-product-vision--problem-statement)
+1. [Product Vision &amp; Problem Statement](#1-product-vision--problem-statement)
 2. [High-Level Architecture Overview](#2-high-level-architecture-overview)
 3. [System Design — Request Flow](#3-system-design--request-flow)
 4. [Complete Tech Stack Decisions (with Rationale)](#4-complete-tech-stack-decisions-with-rationale)
 5. [Monorepo Folder Structure — Every File Explained](#5-monorepo-folder-structure--every-file-explained)
-6. [Backend — Detailed Setup & Files](#6-backend--detailed-setup--files)
-7. [Frontend — Detailed Setup & Files](#7-frontend--detailed-setup--files)
+6. [Backend — Detailed Setup &amp; Files](#6-backend--detailed-setup--files)
+7. [Frontend — Detailed Setup &amp; Files](#7-frontend--detailed-setup--files)
 8. [AI Layer — LangChain + Agentic Architecture](#8-ai-layer--langchain--agentic-architecture)
 9. [MCP Integration (Model Context Protocol)](#9-mcp-integration-model-context-protocol)
 10. [Database Design — MongoDB Schemas](#10-database-design--mongodb-schemas)
@@ -22,7 +22,7 @@
 14. [Phase-by-Phase Build Plan](#14-phase-by-phase-build-plan)
 15. [API Contracts — Every Endpoint](#15-api-contracts--every-endpoint)
 16. [DevOps — Docker, CI/CD, Deployment](#16-devops--docker-cicd-deployment)
-17. [Resume & Product Launch Strategy](#17-resume--product-launch-strategy)
+17. [Resume &amp; Product Launch Strategy](#17-resume--product-launch-strategy)
 
 ---
 
@@ -36,12 +36,12 @@ This is a **SaaS product** with a freemium model. You publish it, users sign up,
 
 ### Who It's For
 
-| User Type | Pain | How DevDoctor Solves It |
-|---|---|---|
-| Junior developers | No code review, no mentor | AI explains every issue like a senior dev |
-| Solo founders | Ship fast, break things | One-click security & performance scan |
-| Open source maintainers | PRs with no review | Public repo scanning with community comments |
-| Engineering teams | No automated review gate | CI/CD integration for every PR |
+| User Type               | Pain                      | How DevDoctor Solves It                      |
+| ----------------------- | ------------------------- | -------------------------------------------- |
+| Junior developers       | No code review, no mentor | AI explains every issue like a senior dev    |
+| Solo founders           | Ship fast, break things   | One-click security & performance scan        |
+| Open source maintainers | PRs with no review        | Public repo scanning with community comments |
+| Engineering teams       | No automated review gate  | CI/CD integration for every PR               |
 
 ---
 
@@ -177,74 +177,74 @@ sequenceDiagram
 
 ### Frontend
 
-| Tool | Version | Why |
-|---|---|---|
-| React | 18.x | Industry standard, best ecosystem |
-| TypeScript | 5.x | Type safety, better IDE support, fewer runtime bugs |
-| Material UI (MUI) | v6 | Comprehensive design system, production-ready components |
-| Vite | 5.x | Fastest dev server, native ESM, better DX than CRA |
-| Redux Toolkit | 2.x | Predictable global state, DevTools, RTK Query built in |
-| RTK Query | (in RTK) | Auto-caching API layer, removes Axios boilerplate |
-| Socket.io Client | 4.x | Real-time progress streaming |
-| Monaco Editor | latest | VS Code in browser — essential for diff viewing |
-| React Router v6 | 6.x | File-based routing, loaders, actions |
-| React Hook Form | 7.x | Performant forms with minimal re-renders |
-| Zod | 3.x | Runtime schema validation (shared with backend) |
-| Framer Motion | 11.x | Smooth UI transitions |
-| React Query (TanStack) | v5 | Server state management (complement to Redux for API data) |
+| Tool                   | Version  | Why                                                        |
+| ---------------------- | -------- | ---------------------------------------------------------- |
+| React                  | 18.x     | Industry standard, best ecosystem                          |
+| TypeScript             | 5.x      | Type safety, better IDE support, fewer runtime bugs        |
+| Material UI (MUI)      | v6       | Comprehensive design system, production-ready components   |
+| Vite                   | 5.x      | Fastest dev server, native ESM, better DX than CRA         |
+| Redux Toolkit          | 2.x      | Predictable global state, DevTools, RTK Query built in     |
+| RTK Query              | (in RTK) | Auto-caching API layer, removes Axios boilerplate          |
+| Socket.io Client       | 4.x      | Real-time progress streaming                               |
+| Monaco Editor          | latest   | VS Code in browser — essential for diff viewing           |
+| React Router v6        | 6.x      | File-based routing, loaders, actions                       |
+| React Hook Form        | 7.x      | Performant forms with minimal re-renders                   |
+| Zod                    | 3.x      | Runtime schema validation (shared with backend)            |
+| Framer Motion          | 11.x     | Smooth UI transitions                                      |
+| React Query (TanStack) | v5       | Server state management (complement to Redux for API data) |
 
 ### Backend
 
-| Tool | Version | Why |
-|---|---|---|
-| Node.js | 20 LTS | Latest stable, best performance |
-| Express | 5.x | Minimal, flexible, industry standard |
-| TypeScript | 5.x | End-to-end type safety |
-| Mongoose | 8.x | MongoDB ODM, schema enforcement |
-| BullMQ | 5.x | Redis-backed job queue, retries, priorities |
-| Socket.io | 4.x | Real-time bidirectional events |
-| Multer | 2.x | File upload handling |
-| Passport.js | 0.7.x | GitHub OAuth strategy |
-| jsonwebtoken | 9.x | JWT creation and verification |
-| bcrypt | 5.x | Password hashing |
-| express-rate-limit | 7.x | API rate limiting |
-| Helmet | 8.x | Security HTTP headers |
-| Morgan | 1.x | HTTP request logging |
-| Winston | 3.x | Structured application logging |
-| Zod | 3.x | Schema validation (shared with frontend) |
-| cors | 2.x | Cross-origin request handling |
-| dotenv | 16.x | Environment variable management |
+| Tool               | Version | Why                                         |
+| ------------------ | ------- | ------------------------------------------- |
+| Node.js            | 20 LTS  | Latest stable, best performance             |
+| Express            | 5.x     | Minimal, flexible, industry standard        |
+| TypeScript         | 5.x     | End-to-end type safety                      |
+| Mongoose           | 8.x     | MongoDB ODM, schema enforcement             |
+| BullMQ             | 5.x     | Redis-backed job queue, retries, priorities |
+| Socket.io          | 4.x     | Real-time bidirectional events              |
+| Multer             | 2.x     | File upload handling                        |
+| Passport.js        | 0.7.x   | GitHub OAuth strategy                       |
+| jsonwebtoken       | 9.x     | JWT creation and verification               |
+| bcrypt             | 5.x     | Password hashing                            |
+| express-rate-limit | 7.x     | API rate limiting                           |
+| Helmet             | 8.x     | Security HTTP headers                       |
+| Morgan             | 1.x     | HTTP request logging                        |
+| Winston            | 3.x     | Structured application logging              |
+| Zod                | 3.x     | Schema validation (shared with frontend)    |
+| cors               | 2.x     | Cross-origin request handling               |
+| dotenv             | 16.x    | Environment variable management             |
 
 ### AI Layer
 
-| Tool | Why |
-|---|---|
-| LangChain.js | Agentic orchestration, tool use, prompt chaining |
-| OpenAI API (GPT-4o) | Primary LLM — best code reasoning |
-| Google Gemini API | Fallback LLM — cost optimization |
-| tiktoken | Token counting before sending large files |
-| LangChain Tools | Custom tools for security scan, perf scan, etc. |
-| LangGraph (JS) | State machine for multi-step agentic workflows |
+| Tool                | Why                                              |
+| ------------------- | ------------------------------------------------ |
+| LangChain.js        | Agentic orchestration, tool use, prompt chaining |
+| OpenAI API (GPT-4o) | Primary LLM — best code reasoning               |
+| Google Gemini API   | Fallback LLM — cost optimization                |
+| tiktoken            | Token counting before sending large files        |
+| LangChain Tools     | Custom tools for security scan, perf scan, etc.  |
+| LangGraph (JS)      | State machine for multi-step agentic workflows   |
 
 ### MCP (Model Context Protocol)
 
-| What | Why |
-|---|---|
+| What                  | Why                                             |
+| --------------------- | ----------------------------------------------- |
 | @anthropic-ai/sdk MCP | Connect your AI agent to external tools via MCP |
-| GitHub MCP Server | Read PR context, push fix suggestions |
-| Custom MCP Server | Your own DevDoctor tools as MCP tools |
+| GitHub MCP Server     | Read PR context, push fix suggestions           |
+| Custom MCP Server     | Your own DevDoctor tools as MCP tools           |
 
 ### Database & Infrastructure
 
-| Tool | Why |
-|---|---|
-| MongoDB Atlas | Managed cloud MongoDB — free tier to paid |
+| Tool            | Why                                        |
+| --------------- | ------------------------------------------ |
+| MongoDB Atlas   | Managed cloud MongoDB — free tier to paid |
 | Redis (Upstash) | Managed Redis for queue + cache + sessions |
-| Cloudinary | File and ZIP storage |
-| Docker | Containerize everything |
-| GitHub Actions | CI/CD pipeline |
-| Vercel | Frontend deployment (instant) |
-| Render | Backend + worker deployment |
+| Cloudinary      | File and ZIP storage                       |
+| Docker          | Containerize everything                    |
+| GitHub Actions  | CI/CD pipeline                             |
+| Vercel          | Frontend deployment (instant)              |
+| Render          | Backend + worker deployment                |
 
 ---
 
@@ -482,7 +482,7 @@ devdoctor-ai/
 ### Step 6.1 — Initialize the Backend
 
 ```bash
-mkdir server && cd server
+		mkdir server && cd server
 npm init -y
 npm install express mongoose bullmq socket.io multer cloudinary passport passport-github2 jsonwebtoken bcrypt express-rate-limit helmet morgan winston express-validator zod cors dotenv langchain @langchain/openai @langchain/community openai tiktoken ioredis @anthropic-ai/sdk
 npm install -D typescript ts-node nodemon @types/node @types/express @types/mongoose @types/passport @types/passport-github2 @types/jsonwebtoken @types/bcrypt @types/multer @types/cors @types/morgan
@@ -1548,6 +1548,7 @@ gantt
 ### Detailed Phase Breakdown
 
 #### ✅ Phase 1 — Foundation (Week 1)
+
 - Initialize monorepo with npm workspaces
 - Set up TypeScript strict config for both client and server
 - Docker Compose for local MongoDB + Redis
@@ -1556,6 +1557,7 @@ gantt
 - Set up Winston logging and error handler
 
 #### ✅ Phase 2 — Repository Ingestion (Week 2)
+
 - Build file upload endpoint with Multer
 - Store ZIPs to Cloudinary
 - Write the file tree parser: unzip → build tree → detect project type
@@ -1564,6 +1566,7 @@ gantt
 - Render interactive file tree explorer component
 
 #### ✅ Phase 3 — AI Analysis Engine (Week 3–4)
+
 - Set up LangChain with OpenAI GPT-4o
 - Build the three core scan tools as LangChain tools
 - Write prompt templates for each tool
@@ -1572,6 +1575,7 @@ gantt
 - Return structured JSON with issues and scores
 
 #### ✅ Phase 4 — Async Queue + Real-Time (Week 4–5)
+
 - Set up BullMQ queue with Redis connection
 - Write the analysis worker that consumes jobs
 - Wire worker to emit Socket.io events at each step
@@ -1579,6 +1583,7 @@ gantt
 - Build `ProgressStream` component with live step updates
 
 #### ✅ Phase 5 — Report & Fix UI (Week 5–6)
+
 - Build report page showing all issues grouped by type
 - Integrate `@monaco-editor/react` for diff display
 - Build fix generation endpoint using a fix-specific LangChain agent
@@ -1586,18 +1591,21 @@ gantt
 - Score card component with animated ring gauges (MUI or Recharts)
 
 #### ✅ Phase 6 — MCP Layer (Week 7)
+
 - Scaffold the MCP server with `@modelcontextprotocol/sdk`
 - Implement `scan_code` and `explain_file` MCP tools
 - Connect to GitHub's official MCP server to read PR files
 - Test MCP server in Claude Desktop
 
 #### 🔜 Phase 7 — Community & Practice Arena (Week 8–9)
+
 - Toggle report visibility to public
 - Thread-based discussion system per file or per issue
 - Practice Arena: AI generates challenges from bad code
 - User rewrites → AI scores the improvement
 
 #### 🔜 Phase 8 — SaaS Launch (Week 10)
+
 - Stripe integration for monthly subscription plans
 - Credit-based usage limits for free tier
 - Admin dashboard for metrics
@@ -1609,55 +1617,55 @@ gantt
 
 ### Authentication
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| GET | `/api/auth/github` | None | Redirect to GitHub OAuth |
-| GET | `/api/auth/github/callback` | None | GitHub OAuth callback |
-| POST | `/api/auth/logout` | JWT | Invalidate session |
-| GET | `/api/auth/me` | JWT | Get current user |
+| Method | Endpoint                      | Auth | Description              |
+| ------ | ----------------------------- | ---- | ------------------------ |
+| GET    | `/api/auth/github`          | None | Redirect to GitHub OAuth |
+| GET    | `/api/auth/github/callback` | None | GitHub OAuth callback    |
+| POST   | `/api/auth/logout`          | JWT  | Invalidate session       |
+| GET    | `/api/auth/me`              | JWT  | Get current user         |
 
 ### Repositories
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/repos/upload` | JWT | Upload ZIP file |
-| POST | `/api/repos/github` | JWT | Connect GitHub repo |
-| GET | `/api/repos` | JWT | List user's repos |
-| GET | `/api/repos/:repoId` | JWT | Get single repo details |
-| DELETE | `/api/repos/:repoId` | JWT | Delete repo + reports |
+| Method | Endpoint               | Auth | Description             |
+| ------ | ---------------------- | ---- | ----------------------- |
+| POST   | `/api/repos/upload`  | JWT  | Upload ZIP file         |
+| POST   | `/api/repos/github`  | JWT  | Connect GitHub repo     |
+| GET    | `/api/repos`         | JWT  | List user's repos       |
+| GET    | `/api/repos/:repoId` | JWT  | Get single repo details |
+| DELETE | `/api/repos/:repoId` | JWT  | Delete repo + reports   |
 
 ### Reports
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/reports/generate/:repoId` | JWT | Start analysis job |
-| GET | `/api/reports/:reportId` | JWT | Get full report |
-| GET | `/api/reports` | JWT | List user's reports |
-| PATCH | `/api/reports/:reportId/visibility` | JWT | Toggle public/private |
-| GET | `/api/reports/public/:reportId` | None | View public report |
+| Method | Endpoint                              | Auth | Description           |
+| ------ | ------------------------------------- | ---- | --------------------- |
+| POST   | `/api/reports/generate/:repoId`     | JWT  | Start analysis job    |
+| GET    | `/api/reports/:reportId`            | JWT  | Get full report       |
+| GET    | `/api/reports`                      | JWT  | List user's reports   |
+| PATCH  | `/api/reports/:reportId/visibility` | JWT  | Toggle public/private |
+| GET    | `/api/reports/public/:reportId`     | None | View public report    |
 
 ### Issues
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| GET | `/api/issues?reportId=...` | JWT | Get all issues for a report |
-| GET | `/api/issues/:issueId` | JWT | Get single issue |
+| Method | Endpoint                     | Auth | Description                 |
+| ------ | ---------------------------- | ---- | --------------------------- |
+| GET    | `/api/issues?reportId=...` | JWT  | Get all issues for a report |
+| GET    | `/api/issues/:issueId`     | JWT  | Get single issue            |
 
 ### Fixes
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/fixes/generate` | JWT | Generate AI fix for an issue |
-| GET | `/api/fixes/:fixId` | JWT | Get fix with diff |
-| POST | `/api/fixes/:fixId/apply` | JWT | Apply a fix |
-| GET | `/api/fixes?reportId=...` | JWT | List fixes for a report |
+| Method | Endpoint                    | Auth | Description                  |
+| ------ | --------------------------- | ---- | ---------------------------- |
+| POST   | `/api/fixes/generate`     | JWT  | Generate AI fix for an issue |
+| GET    | `/api/fixes/:fixId`       | JWT  | Get fix with diff            |
+| POST   | `/api/fixes/:fixId/apply` | JWT  | Apply a fix                  |
+| GET    | `/api/fixes?reportId=...` | JWT  | List fixes for a report      |
 
 ### AI Snippets (for MCP tools + public API)
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/analyze/snippet` | API Key | Analyze a code snippet |
-| POST | `/api/explain` | API Key | Explain a code file |
+| Method | Endpoint                 | Auth    | Description            |
+| ------ | ------------------------ | ------- | ---------------------- |
+| POST   | `/api/analyze/snippet` | API Key | Analyze a code snippet |
+| POST   | `/api/explain`         | API Key | Explain a code file    |
 
 ---
 
@@ -1776,15 +1784,15 @@ jobs:
 
 Every technology you implement maps to a concrete interviewer talking point:
 
-| What You Built | What You Tell the Interviewer |
-|---|---|
-| LangChain agentic workflow with custom tools | "I built a multi-step AI agent that uses tool-calling to run specialized code analysis — not just a single prompt" |
-| MCP server | "I implemented Model Context Protocol so my analysis tools can be consumed by Claude Desktop, Cursor, and any other MCP client" |
-| BullMQ + Redis queue | "I decoupled AI analysis into background jobs with retry logic, exponential backoff, and concurrency control" |
-| Socket.io real-time progress | "I built real-time progress streaming so users see live analysis updates without polling" |
-| Monaco editor diff view | "I embedded VS Code's editor in the browser to render before/after code diffs" |
-| End-to-end TypeScript | "The entire stack is TypeScript with shared Zod schemas between client and server for runtime-validated types" |
-| GitHub OAuth + JWT | "I implemented a real production auth flow — not just local auth" |
+| What You Built                               | What You Tell the Interviewer                                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| LangChain agentic workflow with custom tools | "I built a multi-step AI agent that uses tool-calling to run specialized code analysis — not just a single prompt"             |
+| MCP server                                   | "I implemented Model Context Protocol so my analysis tools can be consumed by Claude Desktop, Cursor, and any other MCP client" |
+| BullMQ + Redis queue                         | "I decoupled AI analysis into background jobs with retry logic, exponential backoff, and concurrency control"                   |
+| Socket.io real-time progress                 | "I built real-time progress streaming so users see live analysis updates without polling"                                       |
+| Monaco editor diff view                      | "I embedded VS Code's editor in the browser to render before/after code diffs"                                                  |
+| End-to-end TypeScript                        | "The entire stack is TypeScript with shared Zod schemas between client and server for runtime-validated types"                  |
+| GitHub OAuth + JWT                           | "I implemented a real production auth flow — not just local auth"                                                              |
 
 ### Launch Checklist
 
@@ -1799,12 +1807,12 @@ Every technology you implement maps to a concrete interviewer talking point:
 
 ### Monetization Plan
 
-| Plan | Price | Features |
-|---|---|---|
-| Free | $0/mo | 5 analyses/month, basic scan, no fix generation |
-| Pro | $19/mo | 50 analyses/month, auto-fix, code explainer, history |
-| Team | $49/mo | Unlimited analyses, PR integration, team workspace |
-| Enterprise | Custom | SSO, on-premise, custom LLM |
+| Plan       | Price  | Features                                             |
+| ---------- | ------ | ---------------------------------------------------- |
+| Free       | $0/mo  | 5 analyses/month, basic scan, no fix generation      |
+| Pro        | $19/mo | 50 analyses/month, auto-fix, code explainer, history |
+| Team       | $49/mo | Unlimited analyses, PR integration, team workspace   |
+| Enterprise | Custom | SSO, on-premise, custom LLM                          |
 
 ---
 
