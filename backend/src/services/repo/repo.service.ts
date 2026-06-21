@@ -1,6 +1,6 @@
 // src/services/repo/repo.service.ts
 
-import { Repository } from "../../models/Repository.model.ts";
+import { RepositoryDAO } from "../../dao/RepositoryDAO";
 import { uploadRepositoryZip } from "./cloudinaryUpload.ts";
 
 export const createRepository = async (
@@ -15,7 +15,7 @@ export const createRepository = async (
         );
 
     const repository =
-        await Repository.create({
+        await RepositoryDAO.createRepository({
             userId,
             repositoryName: file.originalname.replace(".zip", ""),
             originalFileName: file.originalname,

@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { User } from "../../models/User.model";
+import { UserDAO } from "../../dao/UserDAO";
 import type { UserDocument } from "../../types/user.types";
 import type {
     AuthenticatedAccessContext,
@@ -76,7 +76,7 @@ export class AuthService {
      */
     public async register(payload: RegisterRequest, _metadata?: RefreshTokenMetadata): Promise<AuthSession> {
         const email = normalizeEmail(payload.email);
-        const existingUser = await User.exists({ email });
+        const existingUser = await UserDAO.userExistsByEmail(email);
 
         if (existingUser) {
             throw ApiError.badRequest("Email is already registered");
@@ -85,7 +85,7 @@ export class AuthService {
         const password = await hashPassword(payload.password);
 
         try {
-            const user = await User.create({
+            const user = await UserDAO.createUser({
                 username: normalizeUsername(payload.username),
                 email,
                 password,
@@ -120,7 +120,7 @@ export class AuthService {
      * @returns Authenticated login session.
      */
     public async login(payload: LoginRequest, _metadata?: RefreshTokenMetadata): Promise<AuthSession> {
-        const user = await User.findOne({ email: normalizeEmail(payload.email) }).select("+password +refreshTokenHash");
+        const user = await UserDAO.findByEmailWithPassword(normalizeEmail(payload.email));
 
         if (!user?.password) {
             throw ApiError.unauthorized("Invalid email or password");
@@ -155,18 +155,18 @@ export class AuthService {
         const email = normalizeEmail(profile.email);
 
         try {
-            let user = await User.findOne({ githubId: profile.githubId }).select("+refreshTokenHash");
+            let user = await UserDAO.findByGitHubId(profile.githubId);
 
             if (user) {
                 user.email = email;
                 user.username = normalizeUsername(profile.username);
                 user.avatarUrl = profile.avatarUrl;
 
-                await user.save();
+                await UserDAO.saveUser(user);
                 return await this.createAuthSession(user);
             }
 
-            user = await User.findOne({ email }).select("+refreshTokenHash");
+            user = await UserDAO.findByEmail(email);
 
             if (user) {
                 if (user.githubId && user.githubId !== profile.githubId) {
@@ -176,11 +176,11 @@ export class AuthService {
                 user.githubId = profile.githubId;
                 user.avatarUrl = profile.avatarUrl ?? user.avatarUrl;
 
-                await user.save();
+                await UserDAO.saveUser(user);
                 return await this.createAuthSession(user);
             }
 
-            user = await User.create({
+            user = await UserDAO.createGitHubUser({
                 githubId: profile.githubId,
                 username: normalizeUsername(profile.username),
                 email,
@@ -228,7 +228,7 @@ export class AuthService {
         }
 
         const incomingTokenHash = hashRefreshToken(refreshToken);
-        const user = await User.findById(payload.sub).select("+refreshTokenHash");
+        const user = await UserDAO.findByIdWithRefreshToken(payload.sub);
 
         if (!user?.refreshTokenHash) {
             throw ApiError.unauthorized("Refresh token has been revoked");
@@ -241,16 +241,10 @@ export class AuthService {
 
         const issuedRefreshToken = generateRefreshToken(toJwtIdentity(user));
         const nextRefreshTokenHash = hashRefreshToken(issuedRefreshToken.token);
-        const updateResult = await User.updateOne(
-            {
-                _id: user._id,
-                refreshTokenHash: incomingTokenHash,
-            },
-            {
-                $set: {
-                    refreshTokenHash: nextRefreshTokenHash,
-                },
-            }
+        const updateResult = await UserDAO.updateRefreshTokenHash(
+            payload.sub,
+            incomingTokenHash,
+            nextRefreshTokenHash
         );
 
         if (updateResult.modifiedCount !== 1) {
@@ -280,14 +274,8 @@ export class AuthService {
      * @returns Nothing when logout invalidation completes.
      */
     public async logout(refreshToken: string): Promise<void> {
-        await User.updateOne(
-            { refreshTokenHash: hashRefreshToken(refreshToken) },
-            {
-                $unset: {
-                    refreshTokenHash: ""
-                }
-            }
-        );
+        const refreshTokenHash = hashRefreshToken(refreshToken);
+        await UserDAO.clearRefreshTokenHash(refreshTokenHash);
     }
 
     /**
@@ -309,7 +297,7 @@ export class AuthService {
             throw ApiError.unauthorized("Invalid access token subject");
         }
 
-        const user = await User.findById(payload.sub);
+        const user = await UserDAO.findById(payload.sub);
 
         if (!user || user.email !== payload.email) {
             throw ApiError.unauthorized("Authenticated user no longer exists");
@@ -341,7 +329,7 @@ export class AuthService {
         const issuedRefreshToken = generateRefreshToken(identity);
 
         user.refreshTokenHash = hashRefreshToken(issuedRefreshToken.token);
-        await user.save();
+        await UserDAO.saveUser(user);
 
         return {
             accessToken,
@@ -369,14 +357,7 @@ export class AuthService {
             return;
         }
 
-        await User.updateOne(
-            { _id: userId },
-            {
-                $unset: {
-                    refreshTokenHash: "",
-                },
-            }
-        );
+        await UserDAO.clearRefreshTokenHashByUserId(userId);
     }
 }
 
