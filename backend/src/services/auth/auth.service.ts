@@ -284,8 +284,8 @@ export class AuthService {
             { refreshTokenHash: hashRefreshToken(refreshToken) },
             {
                 $unset: {
-                    refreshTokenHash: "",
-                },
+                    refreshTokenHash: ""
+                }
             }
         );
     }
