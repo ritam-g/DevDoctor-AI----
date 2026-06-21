@@ -7,8 +7,8 @@ import passport from "passport";
 import { configurePassport } from "./config/passport";
 import { errorHandler } from "./middleware/errorHandler.middleware.ts";
 import { env } from "./config/env.ts";
-import { authRouter } from "./routes/auth.routes";
-
+import { authRouter } from "./routes/auth.routes.ts";
+import { repoRouter } from "./routes/repo.routes.ts";
 const app = express();
 
 configurePassport();
@@ -34,6 +34,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+
+app.use("/api/repos", repoRouter);
 
 app.use(errorHandler);
 
