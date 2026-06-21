@@ -1,14 +1,15 @@
 import { Types } from "mongoose";
 import { User } from "../../models/User.model";
-import type { UserDocument, IRefreshToken } from "../../types/user.types";
+import type { UserDocument } from "../../types/user.types";
 import type {
     AuthenticatedAccessContext,
     AuthenticatedUser,
     AuthSession,
     GithubOAuthProfile,
-    IssuedRefreshToken,
     JwtUserIdentity,
+    LoginRequest,
     RefreshTokenMetadata,
+    RegisterRequest,
 } from "../../types/auth.types";
 import { ApiError } from "../../utils/apiError";
 import {
@@ -18,9 +19,21 @@ import {
     verifyAccessToken,
     verifyRefreshToken,
 } from "../../utils/jwt";
+import { comparePassword, hashPassword } from "../../utils/password";
 
-const MAX_ACTIVE_REFRESH_TOKENS = 5;
 const MONGO_DUPLICATE_KEY_CODE = 11000;
+
+const normalizeEmail = (email: string): string => {
+    return email.trim().toLowerCase();
+};
+
+const normalizeUsername = (username: string): string => {
+    return username.trim();
+};
+
+const isDuplicateKeyError = (error: unknown): error is { code: number } => {
+    return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === MONGO_DUPLICATE_KEY_CODE;
+};
 
 const toAuthenticatedUser = (user: UserDocument): AuthenticatedUser => {
     return {
@@ -37,71 +50,53 @@ const toAuthenticatedUser = (user: UserDocument): AuthenticatedUser => {
 const toJwtIdentity = (user: UserDocument): JwtUserIdentity => {
     return {
         id: user._id.toString(),
+        email: user.email,
         githubId: user.githubId,
     };
 };
 
-const isDuplicateKeyError = (error: unknown): error is { code: number } => {
-    return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === MONGO_DUPLICATE_KEY_CODE;
-};
-
-const buildRefreshTokenRecord = (issuedToken: IssuedRefreshToken, metadata?: RefreshTokenMetadata): IRefreshToken => {
-    return {
-        tokenHash: hashRefreshToken(issuedToken.token),
-        tokenId: issuedToken.tokenId,
-        expiresAt: issuedToken.expiresAt,
-        createdAt: new Date(),
-        userAgent: metadata?.userAgent,
-        ipAddress: metadata?.ipAddress,
-    };
-};
-
+/**
+ * Coordinates credential auth, GitHub auth, refresh-token rotation, and logout.
+ */
 export class AuthService {
     /**
-     * Finds or creates the local user that corresponds to a GitHub profile.
+     * Registers a new email/password user and creates an authenticated session.
      *
-     * Purpose: bridge Passport's provider profile to DevDoctor's domain user.
-     * Business logic: upserts by immutable GitHub id, refreshes profile fields,
-     * preserves product defaults, and converts database duplicate-key errors into
-     * a controlled API error.
-     * Parameters: normalized GitHub OAuth profile from the Passport strategy.
-     * Return value: safe authenticated user shape for Passport and controllers.
+     * Purpose: allow users without GitHub accounts to create DevDoctor accounts.
+     * Business logic: normalizes email, rejects duplicate accounts, hashes the
+     * password with bcrypt, creates the user, issues JWT tokens, and stores only
+     * the refresh-token hash in MongoDB.
+     * Parameters: validated registration DTO and optional request metadata.
+     * Return value: access token, refresh token for the cookie layer, refresh
+     * expiry, and safe user profile.
      *
-     * @param profile Normalized GitHub profile data.
-     * @returns Authenticated user safe to attach to the request.
+     * @param payload Validated registration request body.
+     * @param _metadata Optional request metadata reserved for audit expansion.
+     * @returns Newly authenticated registration session.
      */
-    public async findOrCreateGithubUser(profile: GithubOAuthProfile): Promise<AuthenticatedUser> {
+    public async register(payload: RegisterRequest, _metadata?: RefreshTokenMetadata): Promise<AuthSession> {
+        const email = normalizeEmail(payload.email);
+        const existingUser = await User.exists({ email });
+
+        if (existingUser) {
+            throw ApiError.badRequest("Email is already registered");
+        }
+
+        const password = await hashPassword(payload.password);
+
         try {
-            const user = await User.findOneAndUpdate(
-                { githubId: profile.githubId },
-                {
-                    $set: {
-                        username: profile.username,
-                        email: profile.email,
-                        avatarUrl: profile.avatarUrl,
-                    },
-                    $setOnInsert: {
-                        plan: "free",
-                        analysisCredits: 5,
-                        refreshTokens: [],
-                    },
-                },
-                {
-                    new: true,
-                    runValidators: true,
-                    setDefaultsOnInsert: true,
-                    upsert: true,
-                }
-            );
+            const user = await User.create({
+                username: normalizeUsername(payload.username),
+                email,
+                password,
+                plan: "free",
+                analysisCredits: 5,
+            });
 
-            if (!user) {
-                throw ApiError.internal("Unable to create GitHub user");
-            }
-
-            return toAuthenticatedUser(user);
+            return await this.createAuthSession(user);
         } catch (error) {
             if (isDuplicateKeyError(error)) {
-                throw ApiError.badRequest("This GitHub email is already linked to another account");
+                throw ApiError.badRequest("Email is already registered");
             }
 
             throw error;
@@ -109,55 +104,123 @@ export class AuthService {
     }
 
     /**
-     * Creates a new authenticated session after OAuth succeeds.
+     * Authenticates an email/password user and creates a new session.
      *
-     * Purpose: issue the access token returned by the API and the refresh token
-     * stored in the HttpOnly cookie.
-     * Business logic: reloads the user from MongoDB, signs both tokens, hashes
-     * and stores the refresh token, and limits active refresh sessions.
-     * Parameters: authenticated user from Passport and optional request metadata.
-     * Return value: session payload containing tokens and the safe user object.
+     * Purpose: exchange valid credentials for a short-lived access token and a
+     * rotated refresh cookie.
+     * Business logic: selects the password hash explicitly, compares it with
+     * bcrypt, avoids account-existence leaks with a generic error, and replaces
+     * the stored refresh-token hash.
+     * Parameters: validated login DTO and optional request metadata.
+     * Return value: access token, refresh token for the cookie layer, refresh
+     * expiry, and safe user profile.
      *
-     * @param user Authenticated user produced by the GitHub strategy.
-     * @param metadata Optional IP and user-agent metadata for auditability.
-     * @returns New auth session.
+     * @param payload Validated login request body.
+     * @param _metadata Optional request metadata reserved for audit expansion.
+     * @returns Authenticated login session.
      */
-    public async createSession(user: AuthenticatedUser, metadata?: RefreshTokenMetadata): Promise<AuthSession> {
-        const dbUser = await User.findById(user.id).select("+refreshTokens");
+    public async login(payload: LoginRequest, _metadata?: RefreshTokenMetadata): Promise<AuthSession> {
+        const user = await User.findOne({ email: normalizeEmail(payload.email) }).select("+password +refreshTokenHash");
 
-        if (!dbUser) {
-            throw ApiError.unauthorized("Authenticated user no longer exists");
+        if (!user?.password) {
+            throw ApiError.unauthorized("Invalid email or password");
         }
 
-        const identity = toJwtIdentity(dbUser);
-        const accessToken = generateAccessToken(identity);
-        const issuedRefreshToken = generateRefreshToken(identity);
+        const passwordMatches = await comparePassword(payload.password, user.password);
 
-        await this.storeRefreshToken(dbUser, issuedRefreshToken, metadata);
+        if (!passwordMatches) {
+            throw ApiError.unauthorized("Invalid email or password");
+        }
 
-        return {
-            accessToken,
-            refreshToken: issuedRefreshToken.token,
-            refreshTokenExpiresAt: issuedRefreshToken.expiresAt,
-            user: toAuthenticatedUser(dbUser),
-        };
+        return await this.createAuthSession(user);
     }
 
     /**
-     * Rotates a refresh token and returns a new authenticated session.
+     * Authenticates a GitHub OAuth profile and creates a new session.
      *
-     * Purpose: continue a session without asking the user to repeat OAuth.
-     * Business logic: validates the incoming JWT, verifies the hashed token is
-     * still allowlisted in MongoDB, replaces it with a newly signed refresh token,
-     * and revokes all tokens if a replayed token is detected.
-     * Parameters: refresh token from the HttpOnly cookie plus request metadata.
-     * Return value: new access token, new refresh token, expiry, and safe user.
+     * Purpose: preserve GitHub OAuth while sharing the same JWT and refresh-token
+     * storage model used by credential auth.
+     * Business logic: finds by GitHub id, links an existing credential account
+     * by email when safe, creates a GitHub-only user when needed, updates profile
+     * fields, issues tokens, and replaces the stored refresh-token hash.
+     * Parameters: normalized GitHub profile and optional request metadata.
+     * Return value: access token, refresh token for the cookie layer, refresh
+     * expiry, and safe user profile.
      *
-     * @param refreshToken Raw refresh token from the cookie.
-     * @param metadata Optional IP and user-agent metadata for the new token.
-     * @returns Rotated auth session.
+     * @param profile Normalized GitHub OAuth profile from Passport.
+     * @param _metadata Optional request metadata reserved for audit expansion.
+     * @returns Authenticated GitHub OAuth session.
      */
-    public async refreshSession(refreshToken: string, metadata?: RefreshTokenMetadata): Promise<AuthSession> {
+    public async githubLogin(profile: GithubOAuthProfile, _metadata?: RefreshTokenMetadata): Promise<AuthSession> {
+        const email = normalizeEmail(profile.email);
+
+        try {
+            let user = await User.findOne({ githubId: profile.githubId }).select("+refreshTokenHash");
+
+            if (user) {
+                user.email = email;
+                user.username = normalizeUsername(profile.username);
+                user.avatarUrl = profile.avatarUrl;
+
+                await user.save();
+                return await this.createAuthSession(user);
+            }
+
+            user = await User.findOne({ email }).select("+refreshTokenHash");
+
+            if (user) {
+                if (user.githubId && user.githubId !== profile.githubId) {
+                    throw ApiError.badRequest("Email is already linked to another GitHub account");
+                }
+
+                user.githubId = profile.githubId;
+                user.avatarUrl = profile.avatarUrl ?? user.avatarUrl;
+
+                await user.save();
+                return await this.createAuthSession(user);
+            }
+
+            user = await User.create({
+                githubId: profile.githubId,
+                username: normalizeUsername(profile.username),
+                email,
+                avatarUrl: profile.avatarUrl,
+                plan: "free",
+                analysisCredits: 5,
+            });
+
+            return await this.createAuthSession(user);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw error;
+            }
+
+            if (isDuplicateKeyError(error)) {
+                throw ApiError.badRequest("Email is already registered");
+            }
+
+            throw error;
+        }
+    }
+
+    /**
+     * Rotates a refresh token and returns a renewed session.
+     *
+     * Purpose: continue an authenticated session without repeating login or
+     * OAuth while limiting replay damage.
+     * Business logic: validates the refresh JWT, compares its hash with the
+     * single stored hash, clears the hash on replay, atomically replaces it with
+     * the new hash, and returns a fresh access token.
+     * Parameters: raw refresh token from the HttpOnly cookie plus optional
+     * request metadata.
+     * Return value: new access token, new refresh token for the cookie layer,
+     * refresh expiry, and safe user profile.
+     *
+     * @param refreshToken Raw refresh token from the HttpOnly cookie.
+     * @param _metadata Optional request metadata reserved for audit expansion.
+     * @returns Rotated authenticated session.
+     */
+    public async refreshSession(refreshToken: string, _metadata?: RefreshTokenMetadata): Promise<AuthSession> {
         const payload = verifyRefreshToken(refreshToken);
 
         if (!Types.ObjectId.isValid(payload.sub)) {
@@ -165,54 +228,38 @@ export class AuthService {
         }
 
         const incomingTokenHash = hashRefreshToken(refreshToken);
-        const user = await User.findOne({
-            _id: payload.sub,
-            "refreshTokens.tokenHash": incomingTokenHash,
-            "refreshTokens.tokenId": payload.jti,
-        }).select("+refreshTokens");
+        const user = await User.findById(payload.sub).select("+refreshTokenHash");
 
-        if (!user) {
-            await this.revokeAllRefreshTokensForUser(payload.sub);
+        if (!user?.refreshTokenHash) {
             throw ApiError.unauthorized("Refresh token has been revoked");
         }
 
-        const now = new Date();
-        const storedToken = user.refreshTokens.find((token) => token.tokenHash === incomingTokenHash && token.tokenId === payload.jti);
-
-        if (!storedToken || storedToken.expiresAt <= now) {
-            await this.removeRefreshTokenByHash(incomingTokenHash);
-            throw ApiError.unauthorized("Refresh token has expired");
+        if (user.refreshTokenHash !== incomingTokenHash) {
+            await this.clearRefreshTokenHashForUser(user._id.toString());
+            throw ApiError.unauthorized("Refresh token has already been rotated");
         }
 
-        const identity = toJwtIdentity(user);
-        const accessToken = generateAccessToken(identity);
-        const issuedRefreshToken = generateRefreshToken(identity);
-        const nextRefreshTokens = user.refreshTokens
-            .filter((token) => token.tokenHash !== incomingTokenHash && token.expiresAt > now)
-            .slice(-(MAX_ACTIVE_REFRESH_TOKENS - 1));
-
-        nextRefreshTokens.push(buildRefreshTokenRecord(issuedRefreshToken, metadata));
-
+        const issuedRefreshToken = generateRefreshToken(toJwtIdentity(user));
+        const nextRefreshTokenHash = hashRefreshToken(issuedRefreshToken.token);
         const updateResult = await User.updateOne(
             {
                 _id: user._id,
-                "refreshTokens.tokenHash": incomingTokenHash,
-                "refreshTokens.tokenId": payload.jti,
+                refreshTokenHash: incomingTokenHash,
             },
             {
                 $set: {
-                    refreshTokens: nextRefreshTokens,
+                    refreshTokenHash: nextRefreshTokenHash,
                 },
             }
         );
 
         if (updateResult.modifiedCount !== 1) {
-            await this.revokeAllRefreshTokensForUser(user._id.toString());
+            await this.clearRefreshTokenHashForUser(user._id.toString());
             throw ApiError.unauthorized("Refresh token has already been rotated");
         }
 
         return {
-            accessToken,
+            accessToken: generateAccessToken(toJwtIdentity(user)),
             refreshToken: issuedRefreshToken.token,
             refreshTokenExpiresAt: issuedRefreshToken.expiresAt,
             user: toAuthenticatedUser(user),
@@ -220,28 +267,35 @@ export class AuthService {
     }
 
     /**
-     * Invalidates a refresh token during logout.
+     * Invalidates the active refresh token during logout.
      *
-     * Purpose: remove the server-side allowlist entry so the cookie can no
-     * longer mint access tokens.
-     * Business logic: hashes the presented token and pulls the matching record;
-     * the operation is idempotent to avoid leaking session state.
+     * Purpose: ensure the current refresh cookie cannot mint future access
+     * tokens after logout.
+     * Business logic: hashes the presented token and unsets the matching stored
+     * hash without revealing whether the token existed.
      * Parameters: raw refresh token from the HttpOnly cookie.
-     * Return value: resolves after the database invalidation attempt completes.
+     * Return value: resolves after the idempotent invalidation attempt.
      *
-     * @param refreshToken Raw refresh token from the cookie.
+     * @param refreshToken Raw refresh token from the HttpOnly cookie.
      * @returns Nothing when logout invalidation completes.
      */
     public async logout(refreshToken: string): Promise<void> {
-        await this.removeRefreshTokenByHash(hashRefreshToken(refreshToken));
+        await User.updateOne(
+            { refreshTokenHash: hashRefreshToken(refreshToken) },
+            {
+                $unset: {
+                    refreshTokenHash: "",
+                },
+            }
+        );
     }
 
     /**
      * Authenticates an access token for protected API routes.
      *
-     * Purpose: convert a bearer token into the current application user.
-     * Business logic: verifies token claims, rejects malformed subjects, and
-     * reloads the user so deleted or disabled accounts cannot keep using APIs.
+     * Purpose: convert a bearer token into the current DevDoctor user.
+     * Business logic: validates JWT claims, rejects malformed subjects, reloads
+     * the user from MongoDB, and rejects stale tokens after email changes.
      * Parameters: bearer access token from the Authorization header.
      * Return value: token payload plus safe authenticated user.
      *
@@ -257,7 +311,7 @@ export class AuthService {
 
         const user = await User.findById(payload.sub);
 
-        if (!user) {
+        if (!user || user.email !== payload.email) {
             throw ApiError.unauthorized("Authenticated user no longer exists");
         }
 
@@ -267,30 +321,50 @@ export class AuthService {
         };
     }
 
-    private async storeRefreshToken(user: UserDocument, issuedToken: IssuedRefreshToken, metadata?: RefreshTokenMetadata): Promise<void> {
-        const now = new Date();
-        const activeTokens = user.refreshTokens
-            .filter((token) => token.expiresAt > now)
-            .slice(-(MAX_ACTIVE_REFRESH_TOKENS - 1));
+    /**
+     * Issues JWTs and persists the replacement refresh-token hash.
+     *
+     * Purpose: keep register, login, and GitHub OAuth on the same session
+     * creation path.
+     * Business logic: signs an access token and refresh token, stores only the
+     * refresh hash, and returns an HTTP-safe session response.
+     * Parameters: hydrated user document that should own the session.
+     * Return value: access token, raw refresh token for cookie storage, refresh
+     * expiry, and safe user profile.
+     *
+     * @param user Hydrated user document that will receive the refresh hash.
+     * @returns New authenticated session.
+     */
+    private async createAuthSession(user: UserDocument): Promise<AuthSession> {
+        const identity = toJwtIdentity(user);
+        const accessToken = generateAccessToken(identity);
+        const issuedRefreshToken = generateRefreshToken(identity);
 
-        activeTokens.push(buildRefreshTokenRecord(issuedToken, metadata));
-        user.refreshTokens = activeTokens;
-
+        user.refreshTokenHash = hashRefreshToken(issuedRefreshToken.token);
         await user.save();
+
+        return {
+            accessToken,
+            refreshToken: issuedRefreshToken.token,
+            refreshTokenExpiresAt: issuedRefreshToken.expiresAt,
+            user: toAuthenticatedUser(user),
+        };
     }
 
-    private async removeRefreshTokenByHash(tokenHash: string): Promise<void> {
-        await User.updateOne(
-            { "refreshTokens.tokenHash": tokenHash },
-            {
-                $pull: {
-                    refreshTokens: { tokenHash },
-                },
-            }
-        );
-    }
-
-    private async revokeAllRefreshTokensForUser(userId: string): Promise<void> {
+    /**
+     * Clears a user's refresh-token hash after replay or invalidation.
+     *
+     * Purpose: remove the active refresh-token allowlist entry when a suspicious
+     * token condition is detected.
+     * Business logic: validates the MongoDB id shape before issuing an unset so
+     * malformed token subjects do not reach the database.
+     * Parameters: string form of the user id from a verified token.
+     * Return value: resolves after the clear operation is attempted.
+     *
+     * @param userId User id whose refresh hash should be removed.
+     * @returns Nothing after the refresh hash is cleared or skipped.
+     */
+    private async clearRefreshTokenHashForUser(userId: string): Promise<void> {
         if (!Types.ObjectId.isValid(userId)) {
             return;
         }
@@ -298,8 +372,8 @@ export class AuthService {
         await User.updateOne(
             { _id: userId },
             {
-                $set: {
-                    refreshTokens: [],
+                $unset: {
+                    refreshTokenHash: "",
                 },
             }
         );

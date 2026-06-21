@@ -3,14 +3,27 @@ import type { UserPlan } from "./user.types";
 
 export type JwtTokenType = "access" | "refresh";
 
+export interface RegisterRequest {
+    username: string;
+    email: string;
+    password: string;
+}
+
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
 export interface JwtUserIdentity {
     id: string;
-    githubId: string;
+    email: string;
+    githubId?: string;
 }
 
 export interface AccessTokenPayload {
     sub: string;
-    githubId: string;
+    email: string;
+    githubId?: string;
     tokenType: "access";
     iat?: number;
     exp?: number;
@@ -20,7 +33,8 @@ export interface AccessTokenPayload {
 
 export interface RefreshTokenPayload {
     sub: string;
-    githubId: string;
+    email: string;
+    githubId?: string;
     tokenType: "refresh";
     jti: string;
     iat?: number;
@@ -44,7 +58,7 @@ export interface GithubOAuthProfile {
 
 export interface AuthenticatedUser {
     id: string;
-    githubId: string;
+    githubId?: string;
     username: string;
     email: string;
     avatarUrl?: string;
@@ -52,16 +66,19 @@ export interface AuthenticatedUser {
     analysisCredits: number;
 }
 
+export interface AuthResponse {
+    accessToken: string;
+    refreshTokenExpiresAt: Date;
+    user: AuthenticatedUser;
+}
+
+export interface AuthSession extends AuthResponse {
+    refreshToken: string;
+}
+
 export interface RefreshTokenMetadata {
     ipAddress?: string;
     userAgent?: string;
-}
-
-export interface AuthSession {
-    accessToken: string;
-    refreshToken: string;
-    refreshTokenExpiresAt: Date;
-    user: AuthenticatedUser;
 }
 
 export interface AuthenticatedAccessContext {
@@ -80,6 +97,7 @@ declare global {
 
         interface Request {
             auth?: AccessTokenPayload;
+            authSession?: AuthSession;
         }
     }
 }

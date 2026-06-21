@@ -1,9 +1,10 @@
 import passport from "passport";
+import type { Request } from "express";
 import { Strategy as GitHubStrategy, type Profile } from "passport-github2";
 import type { VerifyCallback } from "passport-oauth2";
 import { env } from "./env";
 import { authService } from "../services/auth/auth.service";
-import type { GithubOAuthProfile } from "../types/auth.types";
+import type { GithubOAuthProfile, RefreshTokenMetadata } from "../types/auth.types";
 
 const getPrimaryEmail = (profile: Profile): string => {
     const profileEmail = profile.emails?.find((email) => typeof email.value === "string" && email.value.trim().length > 0);
@@ -25,11 +26,18 @@ const mapGithubProfile = (profile: Profile): GithubOAuthProfile => {
     };
 };
 
+const getRequestMetadata = (req: Request): RefreshTokenMetadata => {
+    return {
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+    };
+};
+
 /**
  * Registers the GitHub OAuth strategy with Passport.
  *
  * The strategy keeps OAuth provider concerns in configuration while delegating
- * account lookup and creation to the auth service for a clean boundary.
+ * account lookup, linking, and session creation to the auth service.
  *
  * @returns Nothing; Passport is configured through its process-level registry.
  */
@@ -42,11 +50,13 @@ export const configurePassport = (): void => {
                 callbackURL: env.GITHUB_CALLBACK_URL,
                 scope: ["read:user", "user:email"],
                 userAgent: "DevDoctor-AI",
+                passReqToCallback: true,
             },
-            async (_accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback): Promise<void> => {
+            async (req: Request, _accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback): Promise<void> => {
                 try {
-                    const user = await authService.findOrCreateGithubUser(mapGithubProfile(profile));
-                    done(null, user);
+                    const session = await authService.githubLogin(mapGithubProfile(profile), getRequestMetadata(req));
+                    req.authSession = session;
+                    done(null, session.user);
                 } catch (error) {
                     done(error as Error);
                 }

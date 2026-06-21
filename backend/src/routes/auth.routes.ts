@@ -1,16 +1,17 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import passport from "passport";
-import { githubOAuthCallback, logout, refreshAccessToken } from "../controllers/auth/auth.controller";
+import { getMe, githubOAuthCallback, login, logout, refreshAccessToken, register } from "../controllers/auth/auth.controller";
+import { authenticateAccessToken } from "../middleware/auth.middleware";
 import { ApiError } from "../utils/apiError";
 
 export const authRouter = Router();
 
 /* ------------------------------------------------------------------
-GitHub OAuth Flow
------------------
-1. Redirect the user to GitHub with the required identity scopes.
-2. Let Passport validate GitHub's callback and normalize the provider user.
-3. Delegate token creation and cookie handling to the controller.
+GitHub OAuth Routes
+-------------------
+1. Redirect the user to GitHub with identity and email scopes.
+2. Let Passport validate GitHub's callback.
+3. Return the shared DevDoctor auth response from the controller.
 ------------------------------------------------------------------- */
 
 authRouter.get(
@@ -38,5 +39,15 @@ authRouter.get("/github/callback", (req: Request, res: Response, next: NextFunct
     })(req, res, next);
 });
 
+/* ------------------------------------------------------------------
+Credential Auth Routes
+----------------------
+Register and login return an access token in the response body and set the
+refresh token in an HttpOnly cookie for rotation.
+------------------------------------------------------------------- */
+
+authRouter.post("/register", register);
+authRouter.post("/login", login);
 authRouter.post("/refresh", refreshAccessToken);
 authRouter.post("/logout", logout);
+authRouter.get("/me", authenticateAccessToken, getMe);

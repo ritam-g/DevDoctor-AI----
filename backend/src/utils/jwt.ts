@@ -43,7 +43,11 @@ const assertTokenPayload = (decoded: string | JwtPayload, expectedType: JwtToken
         throw ApiError.unauthorized("Invalid token payload");
     }
 
-    if (decoded.tokenType !== expectedType || typeof decoded.sub !== "string" || typeof decoded.githubId !== "string") {
+    if (decoded.tokenType !== expectedType || typeof decoded.sub !== "string" || typeof decoded.email !== "string") {
+        throw ApiError.unauthorized("Invalid token payload");
+    }
+
+    if (decoded.githubId !== undefined && typeof decoded.githubId !== "string") {
         throw ApiError.unauthorized("Invalid token payload");
     }
 
@@ -67,7 +71,8 @@ export const generateAccessToken = (identity: JwtUserIdentity): string => {
     return jwt.sign(
         {
             sub: identity.id,
-            githubId: identity.githubId,
+            email: identity.email,
+            ...(identity.githubId ? { githubId: identity.githubId } : {}),
             tokenType: "access",
         },
         env.JWT_SECRET,
@@ -89,7 +94,8 @@ export const generateRefreshToken = (identity: JwtUserIdentity): IssuedRefreshTo
     const token = jwt.sign(
         {
             sub: identity.id,
-            githubId: identity.githubId,
+            email: identity.email,
+            ...(identity.githubId ? { githubId: identity.githubId } : {}),
             tokenType: "refresh",
             jti: tokenId,
         },
