@@ -1,27 +1,67 @@
-// src/services/repo/repo.service.ts
-
 import { RepositoryDAO } from "../../dao/RepositoryDAO";
-import { uploadRepositoryZip } from "./cloudinaryUpload.ts";
+import { uploadRepositoryZip } from "./cloudinaryUpload";
 
-export const createRepository = async (
-    file: Express.Multer.File,
-    userId: string
-) => {
+/**
+ * Repository Service
+ *
+ * This layer contains all business logic related to repositories.
+ *
+ * Responsibilities:
+ * -----------------
+ * • Upload repository
+ * • Fetch repositories
+ * • Delete repositories
+ * • Future AI processing
+ *
+ * NOTE:
+ * Never access MongoDB directly from controllers.
+ * Controllers should always call this service.
+ */
+export class RepoService {
 
-    const cloudinaryUrl =
-        await uploadRepositoryZip(
-            file.buffer,
-            file.originalname
-        );
+    /**
+     * Upload repository to Cloudinary
+     * and create MongoDB record.
+     */
+    static async createRepository(
+        file: Express.Multer.File,
+        userId: string
+    ) {
 
-    const repository =
-        await RepositoryDAO.createRepository({
+        const cloudinaryUrl =
+            await uploadRepositoryZip(
+                file.buffer,
+                file.originalname
+            );
+
+        return RepositoryDAO.createRepository({
+
             userId,
-            repositoryName: file.originalname.replace(".zip", ""),
-            originalFileName: file.originalname,
+
+            repositoryName:
+                file.originalname.replace(".zip", ""),
+
+            originalFileName:
+                file.originalname,
+
             cloudinaryUrl,
-            status: "uploaded",
+
+            status: "uploaded"
+
         });
 
-    return repository;
-};
+    }
+
+    /**
+     * Returns all repositories
+     * uploaded by the logged-in user.
+     */
+    static async getMyRepositories(
+        userId: string
+    ) {
+
+        return RepositoryDAO.findByUserId(userId);
+
+    }
+
+}
